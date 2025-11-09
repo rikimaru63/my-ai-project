@@ -9,3 +9,5 @@ const nextConfig = {
   basePath: '/card-shop-international',
   assetPrefix: '/card-shop-international',
 }
+
+export default nextConfig
