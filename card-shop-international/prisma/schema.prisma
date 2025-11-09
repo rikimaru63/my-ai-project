@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum GameType {
+  POKEMON
+  ONE_PIECE
+  DRAGON_BALL
+  YUGIOH
+  MTG
+  DIGIMON
+  WEISS_SCHWARZ
+  OTHER
+}
+
+enum CardCondition {
+  MINT
+  NEAR_MINT
+  EXCELLENT
+  GOOD
+  LIGHT_PLAYED
+  PLAYED
+  POOR
+}
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String?
+  name          String?
+  country       String?
+  language      String    @default("en")
+  role          UserRole  @default(USER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  orders        Order[]
+  cart          Cart?
+  favorites     Favorite[]
+}
+
+model Category {
+  id            String    @id @default(uuid())
+  nameEn        String
+  nameJa        String?
+  slug          String    @unique
+  parentId      String?
+  parent        Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children      Category[] @relation("CategoryToCategory")
+  sortOrder     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  products      Product[]
+}
+
+model Product {
+  id            String        @id @default(uuid())
+  sku           String        @unique
+  nameEn        String
+  nameJa        String?
+  categoryId    String
+  category      Category      @relation(fields: [categoryId], references: [id])
+  gameType      GameType
+  cardSet       String?
+  cardNumber    String?
+  rarity        String?
+  condition     CardCondition @default(NEAR_MINT)
+  psaGrade      Float?
+  bgsGrade      Float?
+  priceUsd      Decimal
+  priceJpy      Decimal
+  stockQuantity Int           @default(0)
+  images        Json          @default("[]")
+  description   String?
+  featured      Boolean       @default(false)
+  active        Boolean       @default(true)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  
+  orderItems    OrderItem[]
+  cartItems     CartItem[]
+  favorites     Favorite[]
+}
+
+model Cart {
+  id            String    @id @default(uuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id])
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  items         CartItem[]
+}
+
+model CartItem {
+  id            String    @id @default(uuid())
+  cartId        String
+  cart          Cart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id])
+  quantity      Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+  status          OrderStatus @default(PENDING)
+  subtotal        Decimal
+  tax             Decimal     @default(0)
+  shipping        Decimal     @default(0)
+  total           Decimal
+  currency        String      @default("USD")
+  wisePaymentId   String?
+  shippingAddress Json
+  billingAddress  Json?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  items           OrderItem[]
+  payments        Payment[]
+}
+
+model OrderItem {
+  id            String    @id @default(uuid())
+  orderId       String
+  order         Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id])
+  quantity      Int
+  price         Decimal
+  total         Decimal
+  createdAt     DateTime  @default(now())
+}
+
+model Payment {
+  id              String    @id @default(uuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id])
+  provider        String    @default("wise")
+  transactionId   String    @unique
+  amount          Decimal
+  currency        String
+  status          String
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Favorite {
+  id            String    @id @default(uuid())
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  productId     String
+  product       Product   @relation(fields: [productId], references: [id])
+  createdAt     DateTime  @default(now())
+  
+  @@unique([userId, productId])
+}
